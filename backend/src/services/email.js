@@ -1,7 +1,17 @@
 import { Resend } from "resend";
 import { query } from "../db.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Created lazily (only when actually sending) so the app can start, and every
+// other feature (auth, lead search, drafting) still work, even before
+// RESEND_API_KEY is configured.
+let _resend = null;
+function getResend() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not set. Add it in your environment variables before sending email.");
+  }
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const SEND_DELAY_MS = Number(process.env.SEND_DELAY_MS || 1200);
 const MAX_PER_CAMPAIGN = Number(process.env.MAX_EMAILS_PER_CAMPAIGN || 200);
@@ -153,7 +163,7 @@ export async function sendCampaign({ campaignId, orgId, org, sender, product, on
     try {
       await query(`UPDATE emails SET status='sending' WHERE id=$1`, [email.id]);
 
-      const res = await resend.emails.send({
+      const res = await getResend().emails.send({
         from: `${process.env.MAIL_FROM_NAME} <${process.env.MAIL_FROM_EMAIL}>`,
         to: email.to_email,
         replyTo: org.reply_to_email || sender.email,

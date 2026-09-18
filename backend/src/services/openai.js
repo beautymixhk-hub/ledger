@@ -1,15 +1,24 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { recordUsage, extractJson } from "./aiUtils.js";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4";
 
-function textFrom(message) {
-  return (message.content || [])
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
+/** Pull the plain text out of a Responses API result. */
+function textFrom(response) {
+  if (response.output_text) return response.output_text.trim();
+  return (response.output || [])
+    .filter((item) => item.type === "message")
+    .flatMap((item) => item.content || [])
+    .filter((c) => c.type === "output_text")
+    .map((c) => c.text || "")
     .join("\n")
     .trim();
+}
+
+function usageFrom(response) {
+  const u = response.usage || {};
+  return { input_tokens: u.input_tokens || 0, output_tokens: u.output_tokens || 0 };
 }
 
 // ---------------------------------------------------------------- lead search
@@ -28,16 +37,16 @@ Find up to ${count} distinct businesses. Rules:
 Respond with ONLY a JSON array, no markdown fences and no commentary. Each item:
 {"name","category","location","email","website","description","source","fit_score","fit_reason"}`;
 
-  const message = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 8000,
-    messages: [{ role: "user", content: prompt }],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 12 }],
+    input: prompt,
+    max_output_tokens: 8000,
+    tools: [{ type: "web_search" }],
   });
 
-  await recordUsage({ orgId, userId, operation: "search_leads", provider: "claude", usage: message.usage });
+  await recordUsage({ orgId, userId, operation: "search_leads", provider: "openai", usage: usageFrom(response) });
 
-  const parsed = extractJson(textFrom(message), "array");
+  const parsed = extractJson(textFrom(response), "array");
   if (!Array.isArray(parsed)) throw new Error("Model did not return a list");
 
   return parsed
@@ -89,15 +98,15 @@ REQUIREMENTS
 
 Respond with ONLY a JSON object, no fences: {"subject": "...", "body": "..."}`;
 
-  const message = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 1500,
-    messages: [{ role: "user", content: prompt }],
+    input: prompt,
+    max_output_tokens: 1500,
   });
 
-  await recordUsage({ orgId, userId, operation: "draft_email", provider: "claude", usage: message.usage });
+  await recordUsage({ orgId, userId, operation: "draft_email", provider: "openai", usage: usageFrom(response) });
 
-  const parsed = extractJson(textFrom(message), "object");
+  const parsed = extractJson(textFrom(response), "object");
   return {
     subject: String(parsed.subject || "").slice(0, 200),
     body: String(parsed.body || ""),
@@ -124,15 +133,15 @@ Respond with ONLY a JSON object, no fences:
 
 Important: if the reply asks to stop contact, be removed, or says anything equivalent to opting out, classify it as "unsubscribe".`;
 
-  const message = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 600,
-    messages: [{ role: "user", content: prompt }],
+    input: prompt,
+    max_output_tokens: 600,
   });
 
-  await recordUsage({ orgId, userId, operation: "classify_reply", provider: "claude", usage: message.usage });
+  await recordUsage({ orgId, userId, operation: "classify_reply", provider: "openai", usage: usageFrom(response) });
 
-  const parsed = extractJson(textFrom(message), "object");
+  const parsed = extractJson(textFrom(response), "object");
   const allowed = ["interested", "not_interested", "question", "unsubscribe", "out_of_office", "other"];
   return {
     sentiment: allowed.includes(parsed.sentiment) ? parsed.sentiment : "other",
@@ -157,16 +166,16 @@ Find up to ${count} distinct competitors. Rules:
 Respond with ONLY a JSON array, no fences. Each item:
 {"name","website","positioning","price_point","strengths","weaknesses","source"}`;
 
-  const message = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 6000,
-    messages: [{ role: "user", content: prompt }],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 12 }],
+    input: prompt,
+    max_output_tokens: 6000,
+    tools: [{ type: "web_search" }],
   });
 
-  await recordUsage({ orgId, userId, operation: "competitor_research", provider: "claude", usage: message.usage });
+  await recordUsage({ orgId, userId, operation: "competitor_research", provider: "openai", usage: usageFrom(response) });
 
-  const parsed = extractJson(textFrom(message), "array");
+  const parsed = extractJson(textFrom(response), "array");
   return parsed
     .filter((c) => c && c.name)
     .map((c) => ({
@@ -209,15 +218,15 @@ Respond with ONLY a JSON object, no fences:
   "objections": [up to 5 objects {"objection": "...", "response": "..."}]
 }`;
 
-  const message = await client.messages.create({
+  const response = await client.responses.create({
     model: MODEL,
-    max_tokens: 2000,
-    messages: [{ role: "user", content: prompt }],
+    input: prompt,
+    max_output_tokens: 2000,
   });
 
-  await recordUsage({ orgId, userId, operation: "battlecard", provider: "claude", usage: message.usage });
+  await recordUsage({ orgId, userId, operation: "battlecard", provider: "openai", usage: usageFrom(response) });
 
-  const parsed = extractJson(textFrom(message), "object");
+  const parsed = extractJson(textFrom(response), "object");
   return {
     whereWeWin: Array.isArray(parsed.whereWeWin) ? parsed.whereWeWin.slice(0, 4) : [],
     whereTheyWin: Array.isArray(parsed.whereTheyWin) ? parsed.whereTheyWin.slice(0, 4) : [],

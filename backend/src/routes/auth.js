@@ -111,11 +111,15 @@ router.get("/team", requireAuth, async (req, res) => {
 
 /** Update org settings — postal address is required before any sending. */
 router.put("/org", requireAuth, requireAdmin, async (req, res) => {
-  const { name, postal_address, reply_to_email } = req.body || {};
+  const { name, postal_address, reply_to_email, ai_provider } = req.body || {};
+  if (ai_provider && !["claude", "openai"].includes(ai_provider)) {
+    return res.status(400).json({ error: "ai_provider must be 'claude' or 'openai'" });
+  }
   const { rows } = await query(
-    `UPDATE orgs SET name=COALESCE($2,name), postal_address=$3, reply_to_email=$4
+    `UPDATE orgs SET name=COALESCE($2,name), postal_address=$3, reply_to_email=$4,
+            ai_provider=COALESCE($5, ai_provider)
      WHERE id=$1 RETURNING *`,
-    [req.user.org_id, name, postal_address || null, reply_to_email || null]
+    [req.user.org_id, name, postal_address || null, reply_to_email || null, ai_provider || null]
   );
   res.json(rows[0]);
 });

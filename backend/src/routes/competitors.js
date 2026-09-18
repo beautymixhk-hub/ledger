@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
-import { researchCompetitors, buildBattlecard } from "../services/claude.js";
+import { researchCompetitors, buildBattlecard } from "../services/ai.js";
 
 const router = express.Router();
 router.use(requireAuth);

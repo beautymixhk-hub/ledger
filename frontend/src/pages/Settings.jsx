@@ -20,6 +20,7 @@ export default function Settings({ session, onUpdate }) {
         name: org.name,
         postal_address: org.postal_address,
         reply_to_email: org.reply_to_email,
+        ai_provider: org.ai_provider,
       });
       setOrg(updated);
       onUpdate({ ...session, org: updated });
@@ -97,6 +98,26 @@ export default function Settings({ session, onUpdate }) {
               <div className="hint">Appears in the footer of every email. Legally required in the US.</div>
             </div>
             {isAdmin && <button className="btn plum" onClick={saveOrg}>Save company details</button>}
+          </div>
+
+          <div className="panel">
+            <h3>AI provider</h3>
+            <div className="hint" style={{ marginBottom: 10 }}>
+              Used for lead search, drafting, reply classification, and competitor research.
+            </div>
+            <div className="field">
+              <label className="row" style={{ marginBottom: 8, cursor: isAdmin ? "pointer" : "default" }}>
+                <input type="radio" name="ai_provider" value="claude" checked={(org.ai_provider || "claude") === "claude"}
+                       disabled={!isAdmin} onChange={(e) => setOrg({ ...org, ai_provider: e.target.value })} />
+                <span style={{ marginLeft: 8 }}>Claude</span>
+              </label>
+              <label className="row" style={{ cursor: isAdmin ? "pointer" : "default" }}>
+                <input type="radio" name="ai_provider" value="openai" checked={org.ai_provider === "openai"}
+                       disabled={!isAdmin} onChange={(e) => setOrg({ ...org, ai_provider: e.target.value })} />
+                <span style={{ marginLeft: 8 }}>OpenAI</span>
+              </label>
+            </div>
+            {isAdmin && <button className="btn plum" onClick={saveOrg}>Save AI provider</button>}
           </div>
 
           <div className="panel">

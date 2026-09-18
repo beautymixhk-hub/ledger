@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS orgs (
   -- CAN-SPAM requires a real physical postal address in every commercial email
   postal_address  TEXT,
   reply_to_email  TEXT,
+  ai_provider     TEXT NOT NULL DEFAULT 'claude' CHECK (ai_provider IN ('claude','openai')),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Backward-compatible for orgs tables created before ai_provider existed.
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS ai_provider TEXT NOT NULL DEFAULT 'claude';
 
 CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -169,8 +172,11 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   org_id         UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   user_id        UUID REFERENCES users(id) ON DELETE SET NULL,
   operation      TEXT NOT NULL,   -- search_leads | draft_email | classify_reply | competitor_research | battlecard
+  provider       TEXT NOT NULL DEFAULT 'claude', -- claude | openai
   input_tokens   INT NOT NULL DEFAULT 0,
   output_tokens  INT NOT NULL DEFAULT 0,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Backward-compatible for ai_usage tables created before provider existed.
+ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'claude';
 CREATE INDEX IF NOT EXISTS idx_usage_org_date ON ai_usage(org_id, created_at);

@@ -21,7 +21,7 @@ Find business customers, draft personalized outreach, send it, and track what co
 
 - **Backend** — Node 20+, Express, PostgreSQL
 - **Frontend** — React 18, Vite, React Router
-- **AI** — Anthropic Claude API (with web search tool)
+- **AI** — Anthropic Claude API or OpenAI API (with web search), switchable per org in Settings
 - **Email** — Resend
 
 ---
@@ -33,7 +33,9 @@ Find business customers, draft personalized outreach, send it, and track what co
 You'll need accounts for:
 
 - **PostgreSQL** — locally, or a managed service ([Neon](https://neon.tech), [Supabase](https://supabase.com), AWS RDS). Free tiers are fine to start.
-- **Anthropic API** — https://console.anthropic.com → API keys
+- **An AI provider** — either or both:
+  - **Anthropic API** — https://console.anthropic.com → API keys
+  - **OpenAI API** — https://platform.openai.com → API keys
 - **Resend** — https://resend.com → API key, plus a verified sending domain
 - **A domain name** you control (required for email — see below)
 
@@ -44,7 +46,9 @@ cd backend
 cp .env.example .env
 ```
 
-Edit `.env` and fill in `DATABASE_URL`, `JWT_SECRET`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, and the `MAIL_FROM_*` values.
+Edit `.env` and fill in `DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`, and the `MAIL_FROM_*` values.
+
+**AI provider:** each org picks Claude or OpenAI from the Settings page in the app (defaults to Claude). Fill in the API key(s) for whichever provider(s) your orgs will actually use — `ANTHROPIC_API_KEY` for Claude, `OPENAI_API_KEY` for OpenAI. It's fine to fill in both if you're not sure yet, or if different teams in your org want different providers.
 
 Generate a JWT secret:
 
