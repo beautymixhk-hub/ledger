@@ -45,6 +45,7 @@ export const api = {
   me: () => request("/auth/me"),
   team: () => request("/auth/team"),
   addTeammate: (b) => request("/auth/team", { method: "POST", body: b }),
+  removeTeammate: (userId) => request(`/auth/team/${userId}`, { method: "DELETE" }),
   updateOrg: (b) => request("/auth/org", { method: "PUT", body: b }),
 
   // products

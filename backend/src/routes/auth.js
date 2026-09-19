@@ -13,8 +13,19 @@ const registerSchema = z.object({
   password: z.string().min(10, "Password must be at least 10 characters"),
 });
 
-/** Create a new org + its first admin user. */
+/** Create a new org + its first admin user.
+ *  Disabled by default: this creates a BRAND NEW company account, not a
+ *  teammate under an existing one (that's POST /team, admin-only). Without
+ *  this gate, anyone who finds the public site can spin up their own org
+ *  on your infrastructure and run up your AI/email API bills. Set
+ *  ALLOW_SIGNUP=true in your environment only if you actually want the
+ *  public "Create account" flow open (e.g. you're offering Ledger itself
+ *  as a product to other companies). */
 router.post("/register", async (req, res) => {
+  if (process.env.ALLOW_SIGNUP !== "true") {
+    return res.status(403).json({ error: "Public sign-up is disabled. Ask your admin to add you as a teammate instead." });
+  }
+
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.errors[0].message });
@@ -107,6 +118,36 @@ router.get("/team", requireAuth, async (req, res) => {
     [req.user.org_id]
   );
   res.json(rows);
+});
+
+/** Admin removes a teammate. Two safety checks: can't remove yourself (use
+ *  another admin's account for that), and can't remove the org's last admin
+ *  (that would lock everyone in the org out permanently). */
+router.delete("/team/:userId", requireAuth, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: "You can't remove your own account. Ask another admin to do it." });
+  }
+
+  const { rows: target } = await query(
+    `SELECT id, role FROM users WHERE id=$1 AND org_id=$2`,
+    [userId, req.user.org_id]
+  );
+  if (!target[0]) return res.status(404).json({ error: "Teammate not found" });
+
+  if (target[0].role === "admin") {
+    const { rows: adminCount } = await query(
+      `SELECT count(*)::int AS n FROM users WHERE org_id=$1 AND role='admin'`,
+      [req.user.org_id]
+    );
+    if (adminCount[0].n <= 1) {
+      return res.status(400).json({ error: "Can't remove the last admin — promote someone else first." });
+    }
+  }
+
+  await query(`DELETE FROM users WHERE id=$1 AND org_id=$2`, [userId, req.user.org_id]);
+  res.json({ ok: true });
 });
 
 /** Update org settings — postal address is required before any sending. */

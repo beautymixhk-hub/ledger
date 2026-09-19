@@ -56,6 +56,17 @@ export default function Settings({ session, onUpdate }) {
     }
   }
 
+  async function removeTeammate(u) {
+    if (!window.confirm(`Remove ${u.name} (${u.email}) from the team? This can't be undone from here.`)) return;
+    try {
+      await api.removeTeammate(u.id);
+      setTeam(await api.team());
+      setMsg({ type: "good", text: `${u.name} removed.` });
+    } catch (err) {
+      setMsg({ type: "bad", text: err.message });
+    }
+  }
+
   function updateSpec(i, field, value) {
     const specs = [...(product.specs || [])];
     specs[i] = { ...specs[i], [field]: value };
@@ -128,7 +139,15 @@ export default function Settings({ session, onUpdate }) {
                   <div>{u.name}</div>
                   <div className="mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{u.email}</div>
                 </div>
-                <span className="pill contacted">{u.role}</span>
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <span className="pill contacted">{u.role}</span>
+                  {isAdmin && u.id !== session.user.id && (
+                    <button className="btn ghost" style={{ padding: "2px 10px", fontSize: 12 }}
+                            onClick={() => removeTeammate(u)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
 

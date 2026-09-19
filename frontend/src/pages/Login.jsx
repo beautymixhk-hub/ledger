@@ -2,8 +2,7 @@ import { useState } from "react";
 import { api, setToken } from "../api.js";
 
 export default function Login({ onAuth }) {
-  const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ orgName: "", name: "", email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -13,7 +12,7 @@ export default function Login({ onAuth }) {
     setBusy(true);
     setError("");
     try {
-      const res = mode === "login" ? await api.login(form) : await api.register(form);
+      const res = await api.login(form);
       setToken(res.token);
       const session = await api.me();
       onAuth(session);
@@ -33,23 +32,9 @@ export default function Login({ onAuth }) {
       <div className="auth-card">
         <div className="brand">Ledger<span>.</span></div>
 
-        <div className="tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Sign in</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Create account</button>
-        </div>
-
-        {mode === "register" && (
-          <>
-            <div className="field">
-              <label className="label">Company name</label>
-              <input className="input" value={form.orgName} onChange={set("orgName")} onKeyDown={onKeyDown} />
-            </div>
-            <div className="field">
-              <label className="label">Your name</label>
-              <input className="input" value={form.name} onChange={set("name")} onKeyDown={onKeyDown} />
-            </div>
-          </>
-        )}
+        {/* Public sign-up is intentionally not offered here — it would let
+            anyone create their own company account on this infrastructure.
+            New teammates are added by an admin in Settings instead. */}
 
         <div className="field">
           <label className="label">Work email</label>
@@ -58,13 +43,12 @@ export default function Login({ onAuth }) {
         <div className="field">
           <label className="label">Password</label>
           <input className="input" type="password" value={form.password} onChange={set("password")} onKeyDown={onKeyDown} />
-          {mode === "register" && <div className="hint">At least 10 characters.</div>}
         </div>
 
         {error && <div className="note bad">{error}</div>}
 
         <button className="btn plum" style={{ width: "100%" }} onClick={submit} disabled={busy}>
-          {busy ? <><span className="spinner" /> Working…</> : mode === "login" ? "Sign in" : "Create account"}
+          {busy ? <><span className="spinner" /> Working…</> : "Sign in"}
         </button>
       </div>
     </div>
