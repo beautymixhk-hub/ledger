@@ -63,6 +63,13 @@ h1, h2, h3, h4 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; marg
   font-size: 14px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--rule);
 }
 .grid-2 { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+/* Without this, a wide table (many columns) forces the 1fr column past the
+   viewport width instead of shrinking, and .main's overflow-x:hidden then
+   clips content invisibly rather than making it scrollable — buttons and
+   text can disappear off-screen with no way to reach them. min-width: 0
+   lets the grid track shrink to the available space, so table-wrap's own
+   overflow-x:auto is what handles the overflow instead. */
+.grid-2 > * { min-width: 0; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 
 /* ---------- forms ---------- */
