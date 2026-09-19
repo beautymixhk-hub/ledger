@@ -212,4 +212,22 @@ router.post("/:id/send", async (req, res) => {
   }
 });
 
+/** Delete a campaign entirely, along with its drafted/sent emails.
+ *  Blocked while a send is actively in progress, so a background send
+ *  never ends up writing results for a campaign that no longer exists. */
+router.delete("/:id", async (req, res) => {
+  const orgId = req.user.org_id;
+  const { rows } = await query(`SELECT status FROM campaigns WHERE id=$1 AND org_id=$2`, [
+    req.params.id,
+    orgId,
+  ]);
+  if (!rows.length) return res.status(404).json({ error: "Campaign not found" });
+  if (rows[0].status === "sending") {
+    return res.status(400).json({ error: "This campaign is actively sending — wait for it to finish before deleting." });
+  }
+
+  await query(`DELETE FROM campaigns WHERE id=$1 AND org_id=$2`, [req.params.id, orgId]);
+  res.json({ ok: true });
+});
+
 export default router;
