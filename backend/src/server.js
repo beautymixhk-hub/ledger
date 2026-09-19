@@ -22,7 +22,17 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    // Keep the raw bytes around too — needed to verify the Resend webhook
+    // signature, which is computed over the exact bytes as sent, not the
+    // re-serialized JSON (whitespace/key-order differences would break it).
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // General rate limit.
 app.use(

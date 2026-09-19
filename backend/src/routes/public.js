@@ -1,8 +1,48 @@
 import express from "express";
+import crypto from "crypto";
 import { query } from "../db.js";
 import { suppress } from "../services/email.js";
 
 const router = express.Router();
+
+/**
+ * Resend signs webhooks using the Svix scheme: HMAC-SHA256 over
+ * "{id}.{timestamp}.{raw body}", keyed by the secret from the dashboard
+ * (after stripping its "whsec_" prefix and base64-decoding it). Verifying
+ * this stops anyone who finds the webhook URL from forging fake events
+ * (e.g. a fake "bounced" to force-suppress a lead, or fake "delivered"
+ * events to fake your stats).
+ */
+function verifyResendSignature(req) {
+  const secret = process.env.RESEND_WEBHOOK_SECRET;
+  if (!secret) return false; // fail closed: unconfigured means untrusted
+
+  const id = req.header("svix-id");
+  const timestamp = req.header("svix-timestamp");
+  const signatureHeader = req.header("svix-signature");
+  if (!id || !timestamp || !signatureHeader || !req.rawBody) return false;
+
+  // Reject old/replayed deliveries (more than 5 minutes old).
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+
+  const secretBytes = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const signedContent = `${id}.${timestamp}.${req.rawBody.toString("utf8")}`;
+  const expected = crypto.createHmac("sha256", secretBytes).update(signedContent).digest("base64");
+
+  // The header can contain multiple space-separated "v1,<sig>" values.
+  return signatureHeader
+    .split(" ")
+    .map((part) => part.split(",")[1])
+    .filter(Boolean)
+    .some((sig) => {
+      try {
+        return crypto.timingSafeEqual(Buffer.from(sig, "base64"), Buffer.from(expected, "base64"));
+      } catch {
+        return false;
+      }
+    });
+}
 
 /**
  * Public unsubscribe endpoint. Linked in every email and in the
@@ -48,6 +88,11 @@ router.post("/unsubscribe", handleUnsubscribe);
  * Configure this URL in the Resend dashboard.
  */
 router.post("/webhooks/resend", async (req, res) => {
+  if (!verifyResendSignature(req)) {
+    console.warn("Rejected webhook: invalid or missing signature");
+    return res.status(401).json({ error: "invalid signature" });
+  }
+
   const event = req.body;
   const type = event?.type || "";
   const messageId = event?.data?.email_id;
