@@ -70,6 +70,7 @@ export const api = {
   updateEmail: (id, b) => request(`/campaigns/emails/${id}`, { method: "PATCH", body: b }),
   approveAll: (id) => request(`/campaigns/${id}/approve-all`, { method: "POST" }),
   sendCampaign: (id) => request(`/campaigns/${id}/send`, { method: "POST" }),
+  deleteCampaign: (id) => request(`/campaigns/${id}`, { method: "DELETE" }),
 
   // competitors
   competitors: () => request("/competitors"),

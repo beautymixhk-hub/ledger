@@ -119,6 +119,39 @@ export default function Leads() {
     });
   }
 
+  async function deleteOne(lead) {
+    if (!window.confirm(
+      `Delete "${lead.name}"? This can't be undone, and if this lead was already part of a campaign, its email history will be deleted too.`
+    )) return;
+    try {
+      await api.deleteLead(lead.id);
+      setSelected((p) => {
+        const n = new Set(p);
+        n.delete(lead.id);
+        return n;
+      });
+      await load();
+    } catch (err) {
+      setMsg({ type: "bad", text: err.message });
+    }
+  }
+
+  async function deleteSelected() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!window.confirm(
+      `Delete ${ids.length} selected lead${ids.length === 1 ? "" : "s"}? This can't be undone, and any email history already sent to them will be deleted too.`
+    )) return;
+    try {
+      for (const id of ids) await api.deleteLead(id);
+      setSelected(new Set());
+      await load();
+      setMsg({ type: "good", text: `${ids.length} lead${ids.length === 1 ? "" : "s"} deleted.` });
+    } catch (err) {
+      setMsg({ type: "bad", text: err.message });
+    }
+  }
+
   return (
     <>
       <h1 className="page-title">Leads</h1>
@@ -202,9 +235,14 @@ export default function Leads() {
               <input type="checkbox" checked={eligible.length > 0 && eligible.every((l) => selected.has(l.id))} onChange={toggleAll} />
               Select all contactable ({eligible.length})
             </label>
-            <button className="btn plum" disabled={!selectedEligible.length} onClick={() => setShowCampaign(true)}>
-              Draft campaign ({selectedEligible.length})
-            </button>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn plum" disabled={!selectedEligible.length} onClick={() => setShowCampaign(true)}>
+                Draft campaign ({selectedEligible.length})
+              </button>
+              <button className="btn ghost" disabled={!selected.size} onClick={deleteSelected}>
+                Delete selected ({selected.size})
+              </button>
+            </div>
           </div>
 
           {showCampaign && (
@@ -242,7 +280,7 @@ export default function Leads() {
               <thead>
                 <tr>
                   <th></th><th>Fit</th><th>Name</th><th>Category</th><th>Location</th>
-                  <th>Email</th><th>Website</th><th>Status</th>
+                  <th>Email</th><th>Website</th><th>Status</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -267,6 +305,12 @@ export default function Leads() {
                     <td>
                       <span className={`pill ${l.status}`}>{l.status.replace("_", " ")}</span>
                       {l.suppressed && <span className="pill unsubscribed" style={{ marginLeft: 4 }}>opted out</span>}
+                    </td>
+                    <td>
+                      <button className="btn ghost" style={{ padding: "2px 8px", fontSize: 12 }}
+                              onClick={() => deleteOne(l)} title="Delete this lead">
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
